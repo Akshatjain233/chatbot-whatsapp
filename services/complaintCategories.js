@@ -144,7 +144,7 @@ function needsVisit(label) {
 /**
  * How this category should be filed in the CRM.
  *
- * The ids are what actually go into the form post; the names are returned too
+ * The ids are what the CRM expects; the names are returned too
  * so a log line can say "Speed Issue" rather than "10192".
  *
  * An unknown label falls back to the generic "Problem" type with no reason -
