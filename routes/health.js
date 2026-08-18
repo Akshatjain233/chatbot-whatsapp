@@ -94,7 +94,12 @@ router.get('/diag', function (req, res) {
   }
 
   return res.status(200).json({
-    marker: 'diag-2',
+    marker: 'diag-3',
+    /* The questions the loaded engine actually holds. A deploy that has not
+       taken effect is indistinguishable from one that has until you can see
+       this - the file on disk proves nothing about the running process. */
+    questions: require('../services/conversationEngine').QUESTIONS
+      .map(function (q) { return q.id; }),
     node: process.version,
     cwd: process.cwd(),
     appDir: path.join(__dirname, '..'),
