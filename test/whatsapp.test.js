@@ -428,7 +428,8 @@ test('an unrecognised payload shape does not crash the webhook', async function 
 
 /** Walks a non-technical complaint up to, but not including, the final submit. */
 async function conversationToSummary() {
-  await say(textMessage('hi'));                                // welcome + category
+  await say(textMessage('hi'));                                // welcome + user id
+  await say(textMessage('ACC-100001'));                        // -> category
   await say(listMessage('speed_issue'));                       // -> description
   await say(textMessage('Internet very slow all day'));        // -> summary
 }
@@ -472,7 +473,8 @@ test('a replayed confirmation does NOT file a second complaint', async function 
 });
 
 test('a replayed mid-conversation message does not skip a question', async function () {
-  await say(textMessage('hi'));                          // -> category
+  await say(textMessage('hi'));                          // -> user id
+  await say(textMessage('ACC-100001'));                  // -> category
 
   const categoryId = 'wamid.category.replayed';
   await say(listMessage('speed_issue'), categoryId);     // -> description

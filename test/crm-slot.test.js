@@ -74,8 +74,20 @@ function menu(replies) {
   return last ? last.options : null;
 }
 
-/** Runs a whole complaint through, returning the final replies. */
+/**
+ * Runs a whole complaint through, returning the final replies.
+ *
+ * The User ID question only appears when the CRM has not identified the
+ * account, so whether it needs answering depends on what the stub returned -
+ * which is exactly what these tests vary. Hence the check rather than a fixed
+ * script.
+ */
 async function fileComplaint(session) {
+  if (session.stepId === 'CUSTOMER_ID') {
+    const identified = await engine.handleIncoming(session, { text: 'skip' });
+    session = identified.session;
+  }
+
   let result = await engine.handleIncoming(session, { optionId: 'speed_issue', text: '' });
   result = await engine.handleIncoming(result.session, { text: 'Internet very slow all day' });
   return engine.handleIncoming(result.session, { optionId: 'submit', text: '' });
@@ -128,6 +140,8 @@ test('a single connection is adopted without asking', async function () {
   assert.doesNotMatch(said(opening.replies), /more than one connection/);
   assert.strictEqual(opening.session.formData.customerId, 'ACC-100001');
   assert.match(said(opening.replies), /type of issue/i);
+  assert.doesNotMatch(said(opening.replies), /User ID/i,
+    'the CRM knows the account, so asking would be asking twice');
 });
 
 test('more connections than WhatsApp can show are capped, not dropped silently', async function () {
@@ -203,7 +217,8 @@ test('an unconfigured CRM does not ask about connections at all', async function
   const opening = await engine.start({ mobile: '9876543210' });
 
   assert.doesNotMatch(said(opening.replies), /more than one connection/);
-  assert.match(said(opening.replies), /type of issue/i, 'straight to the first question');
+  assert.match(said(opening.replies), /User ID/i,
+    'with no CRM to identify the account, the customer is asked for it');
 });
 
 test('a CRM lookup that fails still lets the customer report a fault', async function () {
@@ -215,7 +230,7 @@ test('a CRM lookup that fails still lets the customer report a fault', async fun
 
   const opening = await engine.start({ mobile: '9876543210' });
 
-  assert.match(said(opening.replies), /type of issue/i);
+  assert.match(said(opening.replies), /User ID/i, 'it falls back to asking');
   assert.doesNotMatch(said(opening.replies), /sorry|error|failed/i,
     'a CRM problem is not something to put in front of the customer');
 });
@@ -226,7 +241,7 @@ test('a CRM lookup that THROWS still lets the customer report a fault', async fu
   });
 
   const opening = await engine.start({ mobile: '9876543210' });
-  assert.match(said(opening.replies), /type of issue/i);
+  assert.match(said(opening.replies), /User ID/i);
 });
 
 test('a CRM lookup returning nonsense does not break the picker', async function () {
@@ -236,7 +251,7 @@ test('a CRM lookup returning nonsense does not break the picker', async function
     withCRM({ lookupSubscribers: async function () { return shape; } });
 
     const opening = await engine.start({ mobile: '9876543210' });
-    assert.match(said(opening.replies), /type of issue/i,
+    assert.match(said(opening.replies), /User ID/i,
       'shape ' + JSON.stringify(shape) + ' must not stall the conversation');
   }
 });
@@ -278,7 +293,7 @@ test('a slow CRM does not hold the greeting open indefinitely', async function (
   const opening = await engine.start({ mobile: '9876543210' });
   const took = Date.now() - started;
 
-  assert.match(said(opening.replies), /type of issue/i);
+  assert.match(said(opening.replies), /User ID/i);
   assert.ok(took < 5000,
     'the greeting waits on this lookup, so it must stay fast - it took ' + took + 'ms');
 });

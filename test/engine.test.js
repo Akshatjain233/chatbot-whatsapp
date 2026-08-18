@@ -71,9 +71,18 @@ function menu(replies) {
   return last ? last.options : null;
 }
 
+/** A User ID of the shape the portal issues. */
+const USER_ID = 'ACC-100001';
+
 /**
  * Drives a conversation. Each step is a string (typed), { tap: id }, or
  * { media: filename }.
+ *
+ * The User ID question opens every conversation while the CRM lookup is still
+ * a stub, and answering it in twenty separate scripts would bury what each
+ * test is actually about. So it is answered here - but only when the engine
+ * really asked it, because once the CRM identifies the account the question
+ * disappears and a stray answer would land on the category instead.
  */
 async function converse(script, seed) {
   const opening = await engine.start(seed || { mobile: '9876543210' });
@@ -81,6 +90,13 @@ async function converse(script, seed) {
   let session = opening.session;
   const transcript = [said(opening.replies)];
   let replies = opening.replies;
+
+  if (session.stepId === 'CUSTOMER_ID') {
+    const answered = await engine.handleIncoming(session, { text: USER_ID });
+    session = answered.session;
+    replies = answered.replies;
+    transcript.push(said(replies));
+  }
 
   for (const step of script) {
     const incoming = typeof step === 'string'
@@ -105,7 +121,7 @@ async function converse(script, seed) {
 
 test('a complaint takes three questions and registers', async function () {
   const run = await converse([
-    { tap: 'speed_issue' },              // category
+    { tap: 'speed_issue' },              // category   (converse answers user id)
     'Internet very slow all day',        // description
     { tap: 'submit' }                    // confirm
   ]);
@@ -118,6 +134,63 @@ test('a complaint takes three questions and registers', async function () {
   assert.strictEqual(saved[0].mobile, '9876543210', 'the number comes from the channel');
   assert.strictEqual(saved[0].complaintType, 'Speed Issue');
   assert.strictEqual(saved[0].description, 'Internet very slow all day');
+});
+
+/* --------------------------------------------------------------------------
+   Identifying the account
+
+   Until the CRM lookup is implemented, nothing tells the bot which account a
+   number belongs to. A complaint that reaches the support desk with no User
+   ID is one somebody has to chase by hand, so the bot asks - and stops asking
+   the moment the CRM can answer for itself.
+   -------------------------------------------------------------------------- */
+
+test('the User ID is asked for when the CRM cannot identify the account', async function () {
+  const opening = await engine.start({ mobile: '9876543210' });
+
+  assert.match(said(opening.replies), /User ID/i);
+  assert.strictEqual(opening.session.stepId, 'CUSTOMER_ID');
+});
+
+test('the User ID given is what the complaint is filed against', async function () {
+  const run = await converse([
+    { tap: 'speed_issue' },
+    'Internet very slow all day',
+    { tap: 'submit' }
+  ]);
+
+  assert.strictEqual(savedComplaints()[0].customerId, USER_ID,
+    'without this the support desk has only a phone number to go on');
+  assert.match(run.transcript, /Customer ID: ACC-100001/,
+    'and the customer sees it in the summary before confirming');
+});
+
+test('a customer who cannot find their User ID is not turned away', async function () {
+  const opening = await engine.start({ mobile: '9876543210' });
+  const skipped = await engine.handleIncoming(opening.session, { text: 'SKIP' });
+
+  assert.match(said(skipped.replies), /type of issue/i, 'the conversation carries on');
+
+  let run = await engine.handleIncoming(skipped.session, { optionId: 'speed_issue', text: '' });
+  run = await engine.handleIncoming(run.session, { text: 'Internet very slow all day' });
+  run = await engine.handleIncoming(run.session, { optionId: 'submit', text: '' });
+
+  assert.match(said(run.replies), /registered successfully/,
+    'a dead line is exactly when the bill is hardest to find');
+
+  const saved = savedComplaints();
+  assert.strictEqual(saved.length, 1);
+  assert.strictEqual(saved[0].customerId, '');
+  assert.strictEqual(saved[0].mobile, '9876543210', 'the number still identifies them');
+});
+
+test('a User ID too short to be real is questioned, not stored', async function () {
+  const opening = await engine.start({ mobile: '9876543210' });
+  const run = await engine.handleIncoming(opening.session, { text: 'ab' });
+
+  assert.match(said(run.replies), /too short/i);
+  assert.strictEqual(run.session.stepId, 'CUSTOMER_ID', 'and it asks again');
+  assert.strictEqual(run.session.formData.customerId, '');
 });
 
 test('the bot never asks for anything iCRM already holds', async function () {

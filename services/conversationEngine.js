@@ -196,6 +196,36 @@ const QUESTIONS = [
     }
   },
 
+  {
+    /* Asked only when nothing else has identified the account, so it
+       disappears by itself the moment the CRM's lookupSubscribers() starts
+       returning connections. Until then it is the only thing standing between
+       the support desk and a complaint they cannot attach to an account.
+
+       Optional on purpose. The User ID is printed on the bill and most
+       customers can produce one, but somebody whose line is dead may have no
+       way to look it up, and turning their complaint away over a reference
+       number would be the wrong trade. The mobile number reaches the desk
+       either way, so a skipped answer still leaves a case worth acting on. */
+    id: 'CUSTOMER_ID',
+    when: function (session) { return !session.formData.customerId; },
+    ask: 'Please enter your User ID, as printed on your bill.\n\n' +
+         'If you do not have it to hand, reply SKIP and we will trace the ' +
+         'account from your mobile number.',
+    type: 'text',
+    optional: true,
+    max: 40,
+    check: function (value) {
+      return value.length >= 3
+        ? null
+        : 'That User ID looks too short. Please check your bill, or reply SKIP.';
+    },
+    store: function (value, session) {
+      // '' is what an optional question stores when the customer skips
+      if (value) { session.formData.customerId = value; }
+    }
+  },
+
   /* --- What is wrong ------------------------------------------------------ */
 
   {
