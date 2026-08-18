@@ -61,16 +61,40 @@ router.get('/diag', function (req, res) {
     present[n] = Boolean(process.env[n] && String(process.env[n]).trim());
   });
 
+  /* Names only, never values. Every key name here is already published in
+     .env.example, so this reveals nothing - but it turns "the file is there
+     and nothing loaded" into an answer instead of a guess. */
   let envFile;
   try {
-    const stat = fs.statSync(envPath);
-    envFile = { found: true, bytes: stat.size };
+    const buf = fs.readFileSync(envPath);
+    const text = buf.toString('utf8');
+    const NL = String.fromCharCode(10);
+
+    const keys = [];
+    text.split(NL).forEach(function (line) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.charAt(0) === '#') { return; }
+      const at = trimmed.indexOf('=');
+      if (at < 1) { return; }
+      keys.push(trimmed.slice(0, at).trim());
+    });
+
+    envFile = {
+      found: true,
+      bytes: buf.length,
+      /* A BOM, UTF-16, or a stray fence shows up here immediately */
+      firstBytes: buf.slice(0, 4).toString('hex'),
+      hasNullBytes: buf.includes(0),
+      hasCR: buf.includes(13),
+      lines: text.split(NL).length,
+      keysFound: keys
+    };
   } catch (error) {
     envFile = { found: false, reason: error.code };
   }
 
   return res.status(200).json({
-    marker: 'diag-1',
+    marker: 'diag-2',
     node: process.version,
     cwd: process.cwd(),
     appDir: path.join(__dirname, '..'),
