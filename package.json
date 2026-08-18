@@ -1,0 +1,19 @@
+{
+  "name": "ftth-whatsapp-chatbot",
+  "version": "1.0.0",
+  "description": "FTTH complaint registration chatbot for WhatsApp (Cloud API)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "simulate": "node scripts/simulate.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1"
+  }
+}

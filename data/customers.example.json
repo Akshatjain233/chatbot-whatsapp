@@ -1,0 +1,27 @@
+[
+  {
+    "_comment": "DEMO DATA. Copy this file to data/customers.json to see the chat auto-fill the name, address, provider and plan instead of asking for them. These are made-up accounts - replace the whole file with a real CRM lookup in services/crmService.js before going live.",
+    "customerId": "LDH-100234",
+    "mobile": "9876543210",
+    "name": "Akshat Jain",
+    "address": "House 12, Model Town, near Gurudwara, Ludhiana",
+    "provider": "JioFiber",
+    "planAccount": "JF-300MBPS-88112"
+  },
+  {
+    "customerId": "LDH-100987",
+    "mobile": "9822004411",
+    "name": "Simran Kaur",
+    "address": "Flat 3B, Sarabha Nagar, opposite DAV School, Ludhiana",
+    "provider": "Airtel Xstream",
+    "planAccount": "AX-200MBPS-40771"
+  },
+  {
+    "customerId": "LDH-101455",
+    "mobile": "9915567788",
+    "name": "Rohit Verma",
+    "address": "Shop 7, Gill Road, beside Petrol Pump, Ludhiana",
+    "provider": "BSNL",
+    "planAccount": "BS-100MBPS-12093"
+  }
+]

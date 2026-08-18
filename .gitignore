@@ -1,0 +1,15 @@
+node_modules/
+
+# Customer data - names and phone numbers. Never commit this.
+# customers.example.json holds made-up accounts and IS committed; the real
+# customers.json it gets copied to is not.
+data/complaints.json
+data/complaints.json.tmp
+data/customers.json
+
+# Real credentials. Only .env.example belongs in the repo.
+.env
+data/pending-cases.json
+data/pending-cases.json.tmp
+h8-debug*.png
+h8-debug-temp.js

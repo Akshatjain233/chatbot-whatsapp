@@ -1,0 +1,105 @@
+# ==========================================================================
+# Render deployment (https://render.com)
+#
+# Render reads this file when you create a service via "New +" -> "Blueprint"
+# and point it at this repository. Everything below is set up for you; only
+# the secrets have to be typed in by hand.
+#
+# WHY THE DISK MATTERS
+# --------------------
+# A Render service has an EPHEMERAL filesystem: it is rebuilt from the repo on
+# every deploy. Without the disk below, data/complaints.json is recreated
+# empty each time and every complaint filed since the last deploy is gone -
+# silently, with no error anywhere. The disk is a real volume that survives
+# deploys, and DATA_DIR points the app at it.
+#
+# >>> CURRENTLY SET TO THE FREE PLAN, FOR TESTING ONLY <<<
+#
+# The free plan cannot have a persistent disk, so the `disk:` block and
+# DATA_DIR are commented out below. That has two consequences you must accept
+# while testing, and must not accept with real customers:
+#
+#   1. EVERY COMPLAINT IS LOST on each deploy and on Render's own periodic
+#      restarts. Data lands in the container's own data/ folder, which is
+#      rebuilt from the repo. Treat anything filed here as disposable.
+#   2. The service SLEEPS after 15 minutes idle and takes roughly a minute to
+#      wake. The first customer after a quiet spell waits that minute, and
+#      Meta retries the message meanwhile (the webhook's replay guard stops
+#      that becoming duplicate complaints).
+#
+# TO GO LIVE: change `plan: free` to `plan: starter`, then uncomment the
+# `disk:` block and the DATA_DIR variable. Nothing else changes - the code
+# already reads DATA_DIR, so complaints simply start landing on the volume.
+# ==========================================================================
+
+services:
+  - type: web
+    name: ftth-whatsapp-bot
+    runtime: node
+    plan: free                     # <-- change to `starter` before real customers
+    region: singapore              # closest to India; see Render's region list
+    branch: main
+
+    buildCommand: npm ci
+    startCommand: npm start
+
+    # Render restarts the service if this stops answering
+    healthCheckPath: /health
+
+    # The volume that survives deploys. Requires a paid plan - uncomment it
+    # and the DATA_DIR variable below at the same time as switching to starter.
+    # disk:
+    #   name: ftth-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+
+    envVars:
+      # Points every data file at the persistent disk above. Without it the
+      # app falls back to its own data/ folder, which is fine on free (it
+      # works) but ephemeral (it is wiped).
+      # - key: DATA_DIR
+      #   value: /var/data
+
+      - key: NODE_ENV
+        value: production
+
+      # --- Secrets --------------------------------------------------------
+      # sync: false means Render will not read a value from this file - it
+      # prompts you for it in the dashboard instead, and never stores it in
+      # the repo. Fill each one in there.
+
+      # The client's CRM. Blank until their integration is in place - the bot
+      # works either way, complaints are simply saved rather than pushed.
+      - key: CRM_API_URL
+        sync: false
+
+      - key: CRM_API_KEY
+        sync: false
+
+      # Permanent token from a Meta System User
+      - key: WHATSAPP_API_TOKEN
+        sync: false
+
+      # The numeric ID next to your number under WhatsApp -> API Setup
+      - key: WHATSAPP_PHONE_ID
+        sync: false
+
+      # A random string you invent. The SAME string goes in the Meta
+      # dashboard's "Verify token" box when you register the webhook.
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+
+      # App Settings -> Basic -> App Secret. Proves incoming webhooks are
+      # really from Meta.
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+
+      # Protects /api/complaints, which returns customer names, numbers and
+      # addresses. Generate a long random string.
+      - key: ADMIN_API_KEY
+        sync: false
+
+      # A separate key for whoever imports complaints into the CRM, so it can
+      # be revoked without affecting your own access
+      - key: PARTNER_API_KEY
+        sync: false
