@@ -15,11 +15,11 @@ Every request needs this header:
 
 Base URL:
 
-    https://api.example.com          <-- we will confirm this
+    https://api.mishaelectronics.com
 
 Test that your key works:
 
-    curl -H "X-Api-Key: YOUR_KEY" https://api.example.com/api/complaints?limit=1
+    curl -H "X-Api-Key: YOUR_KEY" https://api.mishaelectronics.com/api/complaints?limit=1
 
 If you get `401`, the key is wrong or the header is missing.
 
@@ -148,7 +148,7 @@ will not miss or duplicate anything.
 ```js
 let lastSeen = loadLastSeen();          // saved between runs, null on first run
 
-const url = new URL('https://api.example.com/api/complaints');
+const url = new URL('https://api.mishaelectronics.com/api/complaints');
 url.searchParams.set('limit', '100');
 if (lastSeen) url.searchParams.set('since', lastSeen);
 
@@ -160,7 +160,7 @@ const complaints = await (await fetch(url, {
 for (const complaint of complaints.reverse()) {
   const ticket = await createCaseInCRM(complaint);
 
-  await fetch(`https://api.example.com/api/complaints/${complaint.complaintId}/ticket`, {
+  await fetch(`https://api.mishaelectronics.com/api/complaints/${complaint.complaintId}/ticket`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
