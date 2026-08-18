@@ -38,6 +38,48 @@ router.get('/', function (req, res) {
 });
 
 /* --------------------------------------------------------------------------
+   TEMPORARY deployment diagnostic - delete once the host is confirmed good.
+
+   Reports only whether each credential is PRESENT, never its value, plus the
+   two paths that explain most "my variables are ignored" problems on shared
+   hosting. The marker proves which build is actually running, which is the
+   one thing a restart button cannot tell you.
+   -------------------------------------------------------------------------- */
+
+router.get('/diag', function (req, res) {
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = path.join(__dirname, '..', '.env');
+
+  const names = [
+    'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_PHONE_ID',
+    'WHATSAPP_API_TOKEN', 'ADMIN_API_KEY', 'PARTNER_API_KEY'
+  ];
+
+  const present = {};
+  names.forEach(function (n) {
+    present[n] = Boolean(process.env[n] && String(process.env[n]).trim());
+  });
+
+  let envFile;
+  try {
+    const stat = fs.statSync(envPath);
+    envFile = { found: true, bytes: stat.size };
+  } catch (error) {
+    envFile = { found: false, reason: error.code };
+  }
+
+  return res.status(200).json({
+    marker: 'diag-1',
+    node: process.version,
+    cwd: process.cwd(),
+    appDir: path.join(__dirname, '..'),
+    envFile: envFile,
+    present: present
+  });
+});
+
+/* --------------------------------------------------------------------------
    Test hooks
 
    The webhook answers Meta before it does any work, so a test that asserted

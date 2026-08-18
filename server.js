@@ -21,7 +21,14 @@
 // In production (Render and friends) the variables are set in the dashboard
 // instead, and there is no .env file - dotenv simply finds nothing and moves
 // on, which is why this is safe to call unconditionally.
-require('dotenv').config();
+require('dotenv').config({
+  /* An explicit path, not the default. dotenv resolves a bare '.env'
+     against process.cwd(), and cwd is not the app folder under every
+     host - Phusion Passenger on cPanel is one that can differ. When it
+     does, dotenv finds nothing, reports nothing, and every credential
+     silently stays unset. Anchoring to __dirname removes the guess. */
+  path: require('path').join(__dirname, '.env')
+});
 
 const express = require('express');
 const cors = require('cors');
