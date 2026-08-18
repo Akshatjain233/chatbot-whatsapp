@@ -17,11 +17,20 @@
      {
        complaintId:   'FTX-2026-1234',       generated here, unique
        mobile:        '9876543210',          10 digits, country code stripped
+       customerId:    'ACC-100001',          the account - see the note below
        complaintType: 'Speed Issue',         one of the categories below
        description:   'Internet very slow',  what the customer typed
        status:        'Open',
        createdAt:     '2026-08-17T15:00:00.000Z'
      }
+
+   customerId CAN BE EMPTY, and your code has to cope with that. It is filled
+   in one of two ways: from lookupSubscribers() below once you implement it,
+   or - until then, and afterwards whenever the lookup finds nothing - by
+   asking the customer to read it off their bill. A customer who cannot find
+   it is allowed to skip, because somebody with a dead line reporting a fault
+   is not a complaint worth refusing. The mobile number is always present, so
+   an unmatched case can still be linked by hand.
 
    The categories are in services/complaintCategories.js and already mirror the
    portal's reason list, each carrying the portal's own numeric ids:
@@ -50,6 +59,18 @@
    2. DO NOT BLOCK THE REPLY for long. This is awaited before the bot confirms
       to the customer, so anything slow should be fired off in the background
       and reported later rather than made to wait.
+
+   HOW TO CHECK YOUR WORK
+   ----------------------
+   Run `npm test`. test/crm-slot.test.js is written as a contract for this
+   file and needs no portal to run: half of it proves a correct implementation
+   is used properly - the chosen connection reaches the case, the ticket
+   number reaches the customer - and half proves that one which is missing,
+   slow, failing or returning nonsense still leaves the bot able to take a
+   complaint. If those pass, you are done.
+
+   To try it end to end without WhatsApp, run `npm run simulate` and hold the
+   conversation in your terminal.
    ========================================================================== */
 
 const categories = require('./complaintCategories');
@@ -113,6 +134,8 @@ async function sendToCRM(complaint) {
       body: JSON.stringify({
         title:       complaint.complaintType + ' - ' + complaint.complaintId,
         mobile:      complaint.mobile,
+        // May be '' - see the note on customerId in the header
+        userId:      complaint.customerId,
         reasonId:    mapping.reasonId,      // e.g. '10192'
         typeId:      mapping.typeId,        // e.g. '331'
         remark:      buildRemark(complaint),
@@ -163,6 +186,7 @@ function buildRemark(complaint) {
   row('Reported', complaint.createdAt);
   lines.push('');
   row('Mobile', complaint.mobile);
+  row('User ID', complaint.customerId);
   row('Category', complaint.complaintType);
   row('Reported problem', complaint.description);
 
@@ -175,11 +199,15 @@ function buildRemark(complaint) {
  * >>> THIS IS THE SECOND PART TO IMPLEMENT <<<
  *
  * WHY IT MATTERS
- * One phone number often holds several connections - the number used while
- * testing had six - and a case belongs to exactly one of them. When this
- * returns more than one, the bot asks the customer which connection the
- * complaint is about and puts their answer in `complaint.customerId`, so the
- * case is filed against the right account instead of a guess.
+ * One phone number often holds several connections, and a case belongs to
+ * exactly one of them. When this returns more than one, the bot asks the
+ * customer which connection the complaint is about and puts their answer in
+ * `complaint.customerId`, so the case is filed against the right account
+ * instead of a guess.
+ *
+ * Implementing this also removes a question: while it returns nothing, the
+ * bot has to ask the customer to read their User ID off their bill. Once it
+ * answers, that question stops being asked and the conversation gets shorter.
  *
  * WHAT TO RETURN
  *

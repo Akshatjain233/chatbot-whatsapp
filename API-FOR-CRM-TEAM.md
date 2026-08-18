@@ -62,9 +62,11 @@ Poll every 2-5 minutes.
 
 - **`complaintId`** — our reference. Save it, you need it for call 3.
 - **`mobile`** — 10 digits, no country code.
-- **`customerId`** — the account, **but it can be empty**. We do not always
-  know it. Please still accept the complaint; the customer has a real fault
-  either way, and someone can link it by hand.
+- **`customerId`** — the User ID the complaint is filed against. The customer
+  reads it off their bill, so it is usually there — **but it can be empty**,
+  because someone with a dead line often cannot find their bill and we would
+  rather take their complaint than turn it away. Please still accept those;
+  the mobile number is always present, so they can be linked by hand.
 - **`createdAt`** — send this back as `since`.
 
 ---
