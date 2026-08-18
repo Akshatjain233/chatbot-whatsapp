@@ -21,17 +21,89 @@
 // In production (Render and friends) the variables are set in the dashboard
 // instead, and there is no .env file - dotenv simply finds nothing and moves
 // on, which is why this is safe to call unconditionally.
-require('dotenv').config({
-  /* An explicit path, not the default. dotenv resolves a bare '.env'
-     against process.cwd(), and cwd is not the app folder under every
-     host - Phusion Passenger on cPanel is one that can differ. When it
-     does, dotenv finds nothing, reports nothing, and every credential
-     silently stays unset. Anchoring to __dirname removes the guess. */
-  path: require('path').join(__dirname, '.env')
-});
+const ENV_FILE = require('path').join(__dirname, '.env');
+
+/* An explicit path, not dotenv's default. dotenv resolves a bare '.env'
+   against process.cwd(), and cwd is not the app folder under every host -
+   Phusion Passenger and LiteSpeed on cPanel are two that can differ. When
+   they do, dotenv finds nothing, reports nothing, and every credential
+   silently stays unset.
+
+   The fallback matters just as much. On shared hosting a half-finished
+   `npm install` is common and there is often no shell to fix it with, and a
+   missing module here would stop the whole service on its first line - so
+   the credentials would be unreadable for the most trivial reason possible.
+   Reading a KEY=value file needs no library, so losing dotenv costs us
+   nothing but a log line. */
+try {
+  require('dotenv').config({ path: ENV_FILE });
+} catch (error) {
+  if (error.code !== 'MODULE_NOT_FOUND') { throw error; }
+  console.warn('[env] dotenv is not installed - using the built-in reader');
+  readEnvFile(ENV_FILE);
+}
+
+/**
+ * The smallest thing that can read a .env: KEY=value a line at a time.
+ *
+ * Deliberately matches dotenv on the two rules that matter - blank lines and
+ * `#` comments are skipped, and a variable already set in the real
+ * environment always wins, so the host's own settings are never overwritten.
+ *
+ * No file is not an error. Most hosts set variables in a dashboard and have
+ * no .env at all, which is exactly how this is meant to run in production.
+ */
+function readEnvFile(file) {
+  let contents;
+  try {
+    contents = require('fs').readFileSync(file, 'utf8');
+  } catch (error) {
+    return;
+  }
+
+  /* Split on newlines only - trim() below removes any carriage return */
+  contents.split(String.fromCharCode(10)).forEach(function (line) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.charAt(0) === '#') { return; }
+
+    const split = trimmed.indexOf('=');
+    if (split < 1) { return; }
+
+    const key = trimmed.slice(0, split).trim();
+    let value = trimmed.slice(split + 1).trim();
+
+    // Strip one matching pair of surrounding quotes, if present
+    const quoted = value.length > 1 &&
+      (value.charAt(0) === '"' || value.charAt(0) === "'") &&
+      value.charAt(value.length - 1) === value.charAt(0);
+    if (quoted) { value = value.slice(1, -1); }
+
+    if (process.env[key] === undefined) { process.env[key] = value; }
+  });
+}
 
 const express = require('express');
-const cors = require('cors');
+
+/* Same reasoning as dotenv above: cors is a convenience, not a requirement,
+   and it must not be able to take the service down. Nothing in the WhatsApp
+   flow needs CORS at all - Meta's servers do not send an Origin - so the
+   fallback below is only here for a future admin page. */
+let cors;
+try {
+  cors = require('cors');
+} catch (error) {
+  if (error.code !== 'MODULE_NOT_FOUND') { throw error; }
+  console.warn('[cors] the cors package is not installed - using a minimal stand-in');
+  cors = function () {
+    return function (req, res, next) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Api-Key');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      if (req.method === 'OPTIONS') { return res.sendStatus(204); }
+      return next();
+    };
+  };
+}
 
 // Route files (each one exports an express.Router)
 const healthRoutes = require('./routes/health');
